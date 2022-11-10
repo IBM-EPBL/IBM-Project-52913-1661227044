@@ -1,0 +1,133 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang2057{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.17134}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\b\f0\fs32\lang9  SMS SPAM Classification\b0\fs22\par
+import pandas as pd\par
+import numpy as np\par
+import matplotlib.pyplot as plt\par
+import seaborn as sns\par
+from sklearn.model_selection import train_test_split\par
+from sklearn.preprocessing import LabelEncoder\par
+from tensorflow.keras.models import Model\par
+from tensorflow.keras.layers import LSTM, Activation, Dense, Dropout, Input, Embedding\par
+from tensorflow.keras.optimizers import RMSprop\par
+from tensorflow.keras.preprocessing.text import Tokenizer\par
+from tensorflow.keras.preprocessing import sequence\par
+from tensorflow.keras.utils import to_categorical\par
+from tensorflow.keras.callbacks import EarlyStopping\par
+%matplotlib inline\par
+\par
+\b\fs32 Load the data into Pandas dataframe\b0\fs22\par
+df = pd.read_csv(r'C:\\Users\\ADMIN\\Downloads\\archive\\spam.csv',encoding='latin-1')\par
+df.head()\par
+v1\tab v2\tab Unnamed: 2\tab Unnamed: 3\tab Unnamed: 4\par
+0\tab ham\tab Go until jurong point, crazy.. Available only ...\tab NaN\tab NaN\tab NaN\par
+1\tab ham\tab Ok lar... Joking wif u oni...\tab NaN\tab NaN\tab NaN\par
+2\tab spam\tab Free entry in 2 a wkly comp to win FA Cup fina...\tab NaN\tab NaN\tab NaN\par
+3\tab ham\tab U dun say so early hor... U c already then say...\tab NaN\tab NaN\tab NaN\par
+4\tab ham\tab Nah I don't think he goes to usf, he lives aro...\tab NaN\tab NaN\tab NaN\par
+df.drop(['Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4'],axis=1,inplace=True)\par
+df.info()\par
+<class 'pandas.core.frame.DataFrame'>\par
+RangeIndex: 5572 entries, 0 to 5571\par
+Data columns (total 2 columns):\par
+ #   Column  Non-Null Count  Dtype \par
+---  ------  --------------  ----- \par
+ 0   v1      5572 non-null   object\par
+ 1   v2      5572 non-null   object\par
+dtypes: object(2)\par
+memory usage: 87.2+ KB\par
+\par
+sns.countplot(df.v1)\par
+plt.xlabel('Label')\par
+plt.title('Number of ham and spam messages')\par
+C:\\Users\\ADMIN\\anaconda3\\lib\\site-packages\\seaborn\\_decorators.py:36: FutureWarning: Pass the following variable as a keyword arg: x. From version 0.12, the only valid positional argument will be `data`, and passing other arguments without an explicit keyword will result in an error or misinterpretation.\par
+  warnings.warn(\par
+Text(0.5, 1.0, 'Number of ham and spam messages')\par
+\par
+\b\fs32 1) Create input and output vectors.\par
+2) Process the labels.\par
+\b0\fs22 X = df.v2\par
+Y = df.v1\par
+le = LabelEncoder()\par
+Y = le.fit_transform(Y)\par
+Y = Y.reshape(-1,1)\par
+\par
+\b\fs32 Split into training and test data.\b0\fs22\par
+X_train,X_test,Y_train,Y_test = train_test_split(X,Y,test_size=0.20)\par
+\b\fs32 Process the data\b0\fs22\par
+max_words = 1000\par
+max_len = 150\par
+tok = Tokenizer(num_words=max_words)\par
+tok.fit_on_texts(X_train)\par
+sequences = tok.texts_to_sequences(X_train)\par
+sequences_matrix = sequence.pad_sequences(sequences,maxlen=max_len)\par
+\b\fs32 Create Model and add Layers\par
+\b0\fs22 def RNN():\par
+    inputs = Input(name='inputs',shape=[max_len])\par
+    layer = Embedding(max_words,50,input_length=max_len)(inputs)\par
+    layer = LSTM(128)(layer)\par
+    layer = Dense(256,name='FC1')(layer)\par
+    layer = Activation('relu')(layer)\par
+    layer = Dropout(0.5)(layer)\par
+    layer = Dense(1,name='out_layer')(layer)\par
+    layer = Activation('tanh')(layer)\par
+    model = Model(inputs=inputs,outputs=layer)\par
+    return model\par
+\par
+model = RNN()\par
+model.summary()\par
+model.compile(loss='binary_crossentropy',optimizer=RMSprop(),metrics=['accuracy','mse','mae'])\par
+Model: "model"\par
+_________________________________________________________________\par
+ Layer (type)                Output Shape              Param #   \par
+=================================================================\par
+ inputs (InputLayer)         [(None, 150)]             0         \par
+                                                                 \par
+ embedding (Embedding)       (None, 150, 50)           50000     \par
+                                                                 \par
+ lstm (LSTM)                 (None, 128)               91648     \par
+                                                                 \par
+ FC1 (Dense)                 (None, 256)               33024     \par
+                                                                 \par
+ activation (Activation)     (None, 256)               0         \par
+                                                                 \par
+ dropout (Dropout)           (None, 256)               0         \par
+                                                                 \par
+ out_layer (Dense)           (None, 1)                 257       \par
+                                                                 \par
+ activation_1 (Activation)   (None, 1)                 0         \par
+                                                                 \par
+=================================================================\par
+Total params: 174,929\par
+Trainable params: 174,929\par
+Non-trainable params: 0\par
+\par
+\b\fs32 Fit the model\b0\fs22\par
+model.fit(sequences_matrix,Y_train,batch_size=128,epochs=10,\par
+          validation_split=0.2,callbacks=[EarlyStopping(monitor='val_loss',min_delta=0.0001)])\par
+Epoch 1/10\par
+28/28 [==============================] - 49s 1s/step - loss: 0.3298 - accuracy: 0.8858 - mse: 0.0881 - mae: 0.1554 - val_loss: 0.2229 - val_accuracy: 0.9619 - val_mse: 0.0382 - val_mae: 0.1093\par
+Epoch 2/10\par
+28/28 [==============================] - 37s 1s/step - loss: 0.0827 - accuracy: 0.9812 - mse: 0.0199 - mae: 0.0849 - val_loss: 0.1650 - val_accuracy: 0.9709 - val_mse: 0.0290 - val_mae: 0.1031\par
+<keras.callbacks.History at 0x28d9975f6a0>\par
+test_sequences = tok.texts_to_sequences(X_test)\par
+test_sequences_matrix = sequence.pad_sequences(test_sequences,maxlen=max_len)\par
+accr = model.evaluate(test_sequences_matrix,Y_test)\par
+35/35 [==============================] - 6s 183ms/step - loss: 0.0590 - accuracy: 0.9785 - mse: 0.0213 - mae: 0.0969\par
+print('Test set\\n  Loss: \{:0.3f\}\\n  Accuracy: \{:0.3f\}'.format(accr[0],accr[1]))\par
+Test set\par
+  Loss: 0.059\par
+  Accuracy: 0.978\par
+\par
+\b\fs32 Save the Model\b0\fs22\par
+model.save(r"C:\\Users\\ADMIN\\Downloads\\model_lSTM.h5")\par
+\b\fs32 Test the Model\b0\fs22\par
+from tensorflow.keras.models import load_model\par
+m2 = load_model(r"C:\\Users\\ADMIN\\Downloads\\model_lSTM.h5")\par
+m2.evaluate(test_sequences_matrix,Y_test)\par
+35/35 [==============================] - 7s 165ms/step - loss: 0.0590 - accuracy: 0.9785 - mse: 0.0213 - mae: 0.0969\par
+[0.058985039591789246,\par
+ 0.9784753322601318,\par
+ 0.021294036880135536,\par
+ 0.09689562767744064]\par
+}
